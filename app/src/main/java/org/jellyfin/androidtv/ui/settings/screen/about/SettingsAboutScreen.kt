@@ -31,12 +31,6 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 	val router = LocalRouter.current
-	val context = LocalContext.current
-	val updateChecker = koinInject<UpdateCheckerService>()
-	val scope = rememberCoroutineScope()
-
-	var isCheckingUpdate by remember { mutableStateOf(false) }
-	var updateStatus by remember { mutableStateOf<String?>(null) }
 
 	SettingsColumn {
 		if (launchedFromLogin) item {
@@ -62,39 +56,7 @@ fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 			)
 		}
 
-		// Show update checker only in enhanced build
-		if (BuildConfig.BUILD_TYPE.equals("enhanced", ignoreCase = true)) {
-			item {
-				val heading = if (isCheckingUpdate) {
-					"Checking for updates..."
-				} else {
-					updateStatus ?: "Check for updates"
-				}
-
-				ListButton(
-					leadingContent = { Icon(painterResource(R.drawable.ic_jellyfin), contentDescription = null) },
-					headingContent = { Text(heading) },
-					onClick = {
-						if (!isCheckingUpdate) {
-							isCheckingUpdate = true
-							updateStatus = null
-							scope.launch {
-								val update = updateChecker.checkForUpdate()
-								isCheckingUpdate = false
-								if (update != null) {
-									updateStatus = "Update available: ${update.version}"
-									// Open download URL in browser
-									val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
-									context.startActivity(intent)
-								} else {
-									updateStatus = "You're up to date!"
-								}
-							}
-						}
-					}
-				)
-			}
-		}
+		// TODO: Re-add update checker after fixing Koin injection issue
 
 		item {
 			val heading = stringResource(R.string.pref_device_model)
