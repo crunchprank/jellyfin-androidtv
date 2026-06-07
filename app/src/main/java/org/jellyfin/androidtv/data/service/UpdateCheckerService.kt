@@ -51,8 +51,14 @@ class UpdateCheckerService(
 				return@withContext null
 			}
 
-			val owner = BuildConfig.GITHUB_REPO_OWNER
-			val repo = BuildConfig.GITHUB_REPO_NAME
+			// Get repo info from BuildConfig (only available in enhanced build)
+			val owner = try {
+				BuildConfig::class.java.getField("GITHUB_REPO_OWNER").get(null) as? String
+			} catch (e: Exception) { null } ?: "crunchprank"
+
+			val repo = try {
+				BuildConfig::class.java.getField("GITHUB_REPO_NAME").get(null) as? String
+			} catch (e: Exception) { null } ?: "jellyfin-androidtv"
 			val apiUrl = "https://api.github.com/repos/$owner/$repo/releases/latest"
 
 			Timber.d("Checking for updates at: $apiUrl")

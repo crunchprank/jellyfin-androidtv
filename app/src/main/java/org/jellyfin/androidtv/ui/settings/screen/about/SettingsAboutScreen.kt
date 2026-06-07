@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.UpdateCheckerService
@@ -26,11 +26,24 @@ import org.jellyfin.androidtv.ui.navigation.LocalRouter
 import org.jellyfin.androidtv.ui.settings.Routes
 import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
 import org.jellyfin.androidtv.ui.settings.util.copyAction
-import org.koin.compose.koinInject
 
 @Composable
 fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 	val router = LocalRouter.current
+	val context = LocalContext.current
+	val scope = rememberCoroutineScope()
+
+	// Create UpdateCheckerService manually (no Koin) for enhanced build only
+	val updateChecker = remember {
+		if (BuildConfig.BUILD_TYPE.equals("enhanced", ignoreCase = true)) {
+			UpdateCheckerService(OkHttpClient())
+		} else {
+			null
+		}
+	}
+
+	var isCheckingUpdate by remember { mutableStateOf(false) }
+	var updateStatus by remember { mutableStateOf<String?>(null) }
 
 	SettingsColumn {
 		if (launchedFromLogin) item {
@@ -56,7 +69,45 @@ fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 			)
 		}
 
-		// TODO: Re-add update checker after fixing Koin injection issue
+		// Show update checker only in enhanced build
+		if (updateChecker != null) {
+			item {
+				val heading = when {
+					isCheckingUpdate -> "Checking for updates..."
+					updateStatus != null -> updateStatus!!
+					else -> "Check for updates"
+				}
+
+				ListButton(
+					leadingContent = { Icon(painterResource(R.drawable.ic_jellyfin), contentDescription = null) },
+					headingContent = { Text(heading) },
+					captionContent = { Text("Tap to check for new releases on GitHub") },
+					onClick = {
+						if (!isCheckingUpdate) {
+							isCheckingUpdate = true
+							updateStatus = null
+							scope.launch {
+								try {
+									val update = updateChecker.checkForUpdate()
+									isCheckingUpdate = false
+									if (update != null) {
+										updateStatus = "Update available: ${update.version}"
+										// Open download URL in browser
+										val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
+										context.startActivity(intent)
+									} else {
+										updateStatus = "You're up to date!"
+									}
+								} catch (e: Exception) {
+									isCheckingUpdate = false
+									updateStatus = "Error checking for updates"
+								}
+							}
+						}
+					}
+				)
+			}
+		}
 
 		item {
 			val heading = stringResource(R.string.pref_device_model)
