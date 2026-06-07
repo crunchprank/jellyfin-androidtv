@@ -33,10 +33,11 @@ jobs:
       - name: Build Enhanced APK
         run: ./gradlew assembleEnhanced
 
-      - name: Get version name
+      - name: Get version info
         id: version
         run: |
-          VERSION=$(grep "versionName" app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "unknown")
+          # Use git commit short hash as version
+          VERSION=$(git rev-parse --short HEAD)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
