@@ -1,12 +1,23 @@
 package org.jellyfin.androidtv.ui.settings.screen.about
 
 import android.content.ClipData
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.data.service.UpdateCheckerService
 import org.jellyfin.androidtv.ui.base.Icon
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.list.ListButton
@@ -15,10 +26,17 @@ import org.jellyfin.androidtv.ui.navigation.LocalRouter
 import org.jellyfin.androidtv.ui.settings.Routes
 import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
 import org.jellyfin.androidtv.ui.settings.util.copyAction
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 	val router = LocalRouter.current
+	val context = LocalContext.current
+	val updateChecker = koinInject<UpdateCheckerService>()
+	val scope = rememberCoroutineScope()
+
+	var isCheckingUpdate by remember { mutableStateOf(false) }
+	var updateStatus by remember { mutableStateOf<String?>(null) }
 
 	SettingsColumn {
 		if (launchedFromLogin) item {
@@ -42,6 +60,40 @@ fun SettingsAboutScreen(launchedFromLogin: Boolean = false) {
 				captionContent = { Text(caption) },
 				onClick = copyAction(ClipData.newPlainText(heading, caption)),
 			)
+		}
+
+		// Show update checker only in enhanced build
+		if (BuildConfig.BUILD_TYPE.equals("enhanced", ignoreCase = true)) {
+			item {
+				val heading = if (isCheckingUpdate) {
+					"Checking for updates..."
+				} else {
+					updateStatus ?: "Check for updates"
+				}
+
+				ListButton(
+					leadingContent = { Icon(painterResource(R.drawable.ic_jellyfin), contentDescription = null) },
+					headingContent = { Text(heading) },
+					onClick = {
+						if (!isCheckingUpdate) {
+							isCheckingUpdate = true
+							updateStatus = null
+							scope.launch {
+								val update = updateChecker.checkForUpdate()
+								isCheckingUpdate = false
+								if (update != null) {
+									updateStatus = "Update available: ${update.version}"
+									// Open download URL in browser
+									val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
+									context.startActivity(intent)
+								} else {
+									updateStatus = "You're up to date!"
+								}
+							}
+						}
+					}
+				)
+			}
 		}
 
 		item {

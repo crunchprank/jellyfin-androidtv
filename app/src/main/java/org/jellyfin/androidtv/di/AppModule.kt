@@ -28,6 +28,7 @@ import org.jellyfin.androidtv.data.repository.NotificationsRepositoryImpl
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepositoryImpl
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.UpdateCheckerService
 import org.jellyfin.androidtv.integration.dream.DreamViewModel
 import org.jellyfin.androidtv.ui.InteractionTrackerViewModel
 import org.jellyfin.androidtv.ui.home.HomeViewModel
@@ -170,6 +171,7 @@ val appModule = module {
 	viewModel { HomeViewModel() }
 
 	single { BackgroundService(get(), get(), get(), get(), get()) }
+	single { UpdateCheckerService(get()) }
 
 	single { MarkdownRenderer(get()) }
 	single { ItemLauncher() }
